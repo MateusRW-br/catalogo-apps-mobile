@@ -1,3 +1,3 @@
 # catalogo-apps-mobile
 
-Flutter pug get
+Flutter pub get
