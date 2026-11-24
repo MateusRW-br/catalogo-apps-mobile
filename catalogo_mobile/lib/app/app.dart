@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../criar_review/criar_review.dart';
 import '../model/app.dart';
 import '../model/review.dart';
 import '../widgets/butia_header.dart';
@@ -180,7 +181,14 @@ class DetalheAppPage extends StatelessWidget {
                           ),
                         ),
                         ElevatedButton(
-                          onPressed: () {},
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CriarReviewPage(app: app),
+                              ),
+                            );
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF3CE86B),
                             foregroundColor: Colors.black87,
