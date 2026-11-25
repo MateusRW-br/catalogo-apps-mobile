@@ -32,7 +32,7 @@ class AppModel {
     final reviews = json['reviews'] as List?;
     return AppModel(
       id: json['id'] as int,
-      name: json['name'] as String,
+      name: (json['name'] ?? '') as String,
       icon: json['icon'] as String?,
       link: json['link'] as String?,
       smallDescription:
@@ -43,7 +43,10 @@ class AppModel {
       rating: (json['rating'] as num? ?? 0).toDouble(),
       category: (json['category'] ?? 'General') as String,
       pricing: (json['pricing'] ?? 'free') as String,
-      developerId: (json['developerId'] ?? json['developer_id']) as int,
+      developerId: (json['developerId'] ??
+              json['developer_id'] ??
+              dev?['id'] ??
+              0) as int,
       developerName: dev?['name'] as String? ?? 'Desenvolvedor',
       reviewsCount: reviews?.length ?? (json['reviewsCount'] as int? ?? 0),
     );

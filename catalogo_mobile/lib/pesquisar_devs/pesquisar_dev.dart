@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../api/app_helper_api.dart';
 import '../dev/dev.dart';
 import '../model/developer.dart';
 import '../widgets/butia_header.dart';
@@ -12,20 +13,44 @@ class PesquisarDevsPage extends StatefulWidget {
 
 class _PesquisarDevsPageState extends State<PesquisarDevsPage> {
   final TextEditingController _buscaController = TextEditingController();
+  final AppHelperApi _appApi = AppHelperApi();
+  List<Developer> _todosDevs = [];
+  bool _carregando = true;
+  String? _erro;
 
-  static final List<Developer> _devsFicticios = [
-    Developer(id: 1, name: 'Nome do Desenvolvedor', appsCount: 5),
-    Developer(id: 2, name: 'Nome do Desenvolvedor', appsCount: 2),
-    Developer(id: 3, name: 'Nome do Desenvolvedor', appsCount: 5),
-    Developer(id: 4, name: 'Nome do Desenvolvedor', appsCount: 5),
-    Developer(id: 5, name: 'Nome do Desenvolvedor', appsCount: 5),
-    Developer(id: 6, name: 'Nome do Desenvolvedor', appsCount: 5),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _carregarDevs();
+  }
+
+  @override
+  void dispose() {
+    _buscaController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _carregarDevs() async {
+    setState(() {
+      _carregando = true;
+      _erro = null;
+    });
+    try {
+      final devs = await _appApi.listarDevelopers(page: 1, limit: 50);
+      if (!mounted) return;
+      setState(() => _todosDevs = devs);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _erro = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _carregando = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final termo = _buscaController.text.trim().toLowerCase();
-    final devs = _devsFicticios
+    final devs = _todosDevs
         .where((d) => termo.isEmpty || d.name.toLowerCase().contains(termo))
         .toList();
 
@@ -82,60 +107,68 @@ class _PesquisarDevsPageState extends State<PesquisarDevsPage> {
                       child: Text('Total encontrado: ${devs.length} desenvolvedores'),
                     ),
                     const SizedBox(height: 12),
-                    ...devs.map(
-                      (dev) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => DetalheDevPage(dev: dev),
+                    if (_carregando)
+                      const Center(child: CircularProgressIndicator())
+                    else if (_erro != null)
+                      Text(_erro!, style: const TextStyle(color: Colors.red))
+                    else
+                      ...devs.map(
+                        (dev) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      DetalheDevPage(developerId: dev.id),
+                                ),
+                              );
+                            },
+                            child: Card(
+                              color: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                side: BorderSide(color: Colors.grey.shade200),
                               ),
-                            );
-                          },
-                          child: Card(
-                            color: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              side: BorderSide(color: Colors.grey.shade200),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 18,
-                                vertical: 14,
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 56,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey.shade400,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 18),
-                                  Expanded(
-                                    child: Text(
-                                      dev.name,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 14,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 56,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade400,
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
-                                  ),
-                                  Text(
-                                    '${dev.appsCount} apps',
-                                    style: TextStyle(color: Colors.grey.shade600),
-                                  ),
-                                ],
+                                    const SizedBox(width: 18),
+                                    Expanded(
+                                      child: Text(
+                                        dev.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      '${dev.appsCount} apps',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),

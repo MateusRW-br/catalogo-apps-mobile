@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../api/app_helper_api.dart';
 import '../model/app.dart';
 import '../widgets/butia_header.dart';
 import '../widgets/card_app.dart';
@@ -12,9 +13,13 @@ class PesquisarAppsPage extends StatefulWidget {
 
 class _PesquisarAppsPageState extends State<PesquisarAppsPage> {
   final TextEditingController _buscaController = TextEditingController();
+  final AppHelperApi _appApi = AppHelperApi();
   final Set<String> _categoriasSelecionadas = {};
   final Set<String> _precificacoesSelecionadas = {};
   bool _ordenarPorRatingDesc = true;
+  bool _carregando = true;
+  String? _erro;
+  List<AppModel> _apps = [];
 
   static const List<String> _categorias = [
     'Navegador',
@@ -34,77 +39,63 @@ class _PesquisarAppsPageState extends State<PesquisarAppsPage> {
     'FOSS': 'foss',
   };
 
-  static final List<AppModel> _appsFicticios = [
-    AppModel(
-      id: 1,
-      name: 'Nome do Aplicativo',
-      icon: null,
-      link: 'https://exemplo.com',
-      smallDescription: 'Descrição curta sobre o aplicativo',
-      markdownDescription:
-          'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam rhoncus, quam sit amet mollis bibendum, nibh nunc vehicula massa, vel molestie ante risus nec nulla.\n\nFusce quis dui ac purus tincidunt fermentum. Sed fringilla finibus erat non placerat.',
-      rating: 4.5,
-      category: 'Navegador',
-      pricing: 'free',
-      developerId: 1,
-      developerName: 'Desenvolvedor',
-      reviewsCount: 25,
-    ),
-    AppModel(
-      id: 2,
-      name: 'Nome do Aplicativo 6',
-      icon: null,
-      link: 'https://exemplo.com',
-      smallDescription: 'Descrição curta sobre o aplicativo',
-      markdownDescription:
-          'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam rhoncus, quam sit amet mollis bibendum, nibh nunc vehicula massa.',
-      rating: 4.5,
-      category: 'IDE',
-      pricing: 'paid',
-      developerId: 2,
-      developerName: 'Desenvolvedor',
-      reviewsCount: 14,
-    ),
-    AppModel(
-      id: 3,
-      name: 'Nome do Aplicativo 11',
-      icon: null,
-      link: 'https://exemplo.com',
-      smallDescription: 'Descrição curta sobre o aplicativo',
-      markdownDescription:
-          'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam rhoncus, quam sit amet mollis bibendum, nibh nunc vehicula massa.',
-      rating: 4.5,
-      category: 'Editor de Texto',
-      pricing: 'freemium',
-      developerId: 3,
-      developerName: 'Desenvolvedor',
-      reviewsCount: 9,
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _carregarApps();
+  }
 
-  List<AppModel> get _appsFiltrados {
-    final termo = _buscaController.text.trim().toLowerCase();
-    final lista = _appsFicticios.where((app) {
-      final bateBusca = termo.isEmpty ||
-          app.name.toLowerCase().contains(termo) ||
-          app.developerName.toLowerCase().contains(termo);
-      final bateCategoria = _categoriasSelecionadas.isEmpty ||
-          _categoriasSelecionadas.contains(app.category);
-      final batePreco = _precificacoesSelecionadas.isEmpty ||
-          _precificacoesSelecionadas.contains(app.pricing.toLowerCase());
-      return bateBusca && bateCategoria && batePreco;
-    }).toList();
+  @override
+  void dispose() {
+    _buscaController.dispose();
+    super.dispose();
+  }
 
-    lista.sort((a, b) => _ordenarPorRatingDesc
-        ? b.rating.compareTo(a.rating)
-        : a.rating.compareTo(b.rating));
-    return lista;
+  Future<void> _carregarApps() async {
+    setState(() {
+      _carregando = true;
+      _erro = null;
+    });
+
+    try {
+      final categoriaParam = _categoriasSelecionadas.length == 1
+          ? _categoriasSelecionadas.first
+          : null;
+      final pricingParam = _precificacoesSelecionadas.length == 1
+          ? _precificacoesSelecionadas.first
+          : null;
+
+      final resultado = await _appApi.listarApps(
+        search: _buscaController.text,
+        category: categoriaParam,
+        pricing: pricingParam,
+        order: _ordenarPorRatingDesc ? 'desc' : 'asc',
+      );
+
+      final filtrados = resultado.where((app) {
+        final bateCat = _categoriasSelecionadas.isEmpty ||
+            _categoriasSelecionadas.contains(app.category);
+        final batePreco = _precificacoesSelecionadas.isEmpty ||
+            _precificacoesSelecionadas.contains(app.pricing.toLowerCase());
+        return bateCat && batePreco;
+      }).toList();
+
+      if (!mounted) return;
+      setState(() {
+        _apps = filtrados;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _erro = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) setState(() => _carregando = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final apps = _appsFiltrados;
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -136,10 +127,13 @@ class _PesquisarAppsPageState extends State<PesquisarAppsPage> {
                           width: 360,
                           child: TextField(
                             controller: _buscaController,
-                            onChanged: (_) => setState(() {}),
+                            onChanged: (_) => _carregarApps(),
                             decoration: InputDecoration(
                               hintText: 'Pesquisa...',
-                              suffixIcon: const Icon(Icons.arrow_forward),
+                              suffixIcon: IconButton(
+                                icon: const Icon(Icons.arrow_forward),
+                                onPressed: _carregarApps,
+                              ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(24),
                                 borderSide: const BorderSide(
@@ -154,9 +148,12 @@ class _PesquisarAppsPageState extends State<PesquisarAppsPage> {
                         ),
                         const SizedBox(width: 12),
                         OutlinedButton.icon(
-                          onPressed: () => setState(
-                            () => _ordenarPorRatingDesc = !_ordenarPorRatingDesc,
-                          ),
+                          onPressed: () {
+                            setState(() {
+                              _ordenarPorRatingDesc = !_ordenarPorRatingDesc;
+                            });
+                            _carregarApps();
+                          },
                           icon: Icon(
                             _ordenarPorRatingDesc
                                 ? Icons.arrow_downward
@@ -209,21 +206,29 @@ class _PesquisarAppsPageState extends State<PesquisarAppsPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Total encontrado: ${apps.length} aplicativos'),
+                              Text('Total encontrado: ${_apps.length} aplicativos'),
                               const SizedBox(height: 14),
-                              GridView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: apps.length,
-                                gridDelegate:
-                                    const SliverGridDelegateWithMaxCrossAxisExtent(
-                                  maxCrossAxisExtent: 300,
-                                  mainAxisExtent: 270,
-                                  crossAxisSpacing: 16,
-                                  mainAxisSpacing: 16,
+                              if (_carregando)
+                                const Center(child: CircularProgressIndicator())
+                              else if (_erro != null)
+                                Text(
+                                  _erro!,
+                                  style: const TextStyle(color: Colors.red),
+                                )
+                              else
+                                GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: _apps.length,
+                                  gridDelegate:
+                                      const SliverGridDelegateWithMaxCrossAxisExtent(
+                                    maxCrossAxisExtent: 300,
+                                    mainAxisExtent: 270,
+                                    crossAxisSpacing: 16,
+                                    mainAxisSpacing: 16,
+                                  ),
+                                  itemBuilder: (_, i) => CardApp(app: _apps[i]),
                                 ),
-                                itemBuilder: (_, i) => CardApp(app: apps[i]),
-                              ),
                             ],
                           ),
                         ),
@@ -275,6 +280,7 @@ class _PesquisarAppsPageState extends State<PesquisarAppsPage> {
                     selecionados.remove(entry.value);
                   }
                 });
+                _carregarApps();
               },
             );
           }),

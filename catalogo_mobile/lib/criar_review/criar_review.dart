@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import '../api/app_helper_api.dart';
 import '../model/app.dart';
-import '../model/review.dart';
 import '../widgets/butia_header.dart';
 
 class CriarReviewPage extends StatefulWidget {
@@ -15,7 +15,9 @@ class CriarReviewPage extends StatefulWidget {
 class _CriarReviewPageState extends State<CriarReviewPage> {
   final _tituloController = TextEditingController();
   final _comentarioController = TextEditingController();
+  final _appApi = AppHelperApi();
   int _notaSelecionada = 5;
+  bool _enviando = false;
 
   @override
   void dispose() {
@@ -24,7 +26,7 @@ class _CriarReviewPageState extends State<CriarReviewPage> {
     super.dispose();
   }
 
-  void _criarReview() {
+  Future<void> _criarReview() async {
     final titulo = _tituloController.text.trim();
     final comentario = _comentarioController.text.trim();
 
@@ -37,17 +39,27 @@ class _CriarReviewPageState extends State<CriarReviewPage> {
       return;
     }
 
-    final novaReview = Review(
-      id: DateTime.now().millisecondsSinceEpoch,
-      name: titulo,
-      markdownText: comentario,
-      rating: _notaSelecionada.toDouble(),
-      appId: widget.app.id,
-      userId: 1, // ID fictício do usuário logado
-      authorName: 'Usuário Teste',
-    );
-
-    Navigator.pop(context, novaReview);
+    setState(() => _enviando = true);
+    try {
+      await _appApi.criarReview(
+        appId: widget.app.id,
+        name: titulo,
+        markdownText: comentario,
+        rating: _notaSelecionada.toDouble(),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Review enviada com sucesso!')),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _enviando = false);
+    }
   }
 
   @override
@@ -195,7 +207,7 @@ class _CriarReviewPageState extends State<CriarReviewPage> {
                             width: 150,
                             height: 44,
                             child: ElevatedButton(
-                              onPressed: _criarReview,
+                              onPressed: _enviando ? null : _criarReview,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF3CE86B),
                                 foregroundColor: Colors.black87,
@@ -203,10 +215,20 @@ class _CriarReviewPageState extends State<CriarReviewPage> {
                                   borderRadius: BorderRadius.circular(24),
                                 ),
                               ),
-                              child: const Text(
-                                'CRIAR',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
+                              child: _enviando
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'CRIAR',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                             ),
                           ),
                         ),

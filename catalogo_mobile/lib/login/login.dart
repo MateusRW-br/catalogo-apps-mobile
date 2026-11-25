@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../api/auth_helper_api.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -10,13 +11,44 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
+  final _authApi = AuthHelperApi();
   bool _ocultarSenha = true;
+  bool _carregando = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _senhaController.dispose();
     super.dispose();
+  }
+
+  Future<void> _entrar() async {
+    if (_emailController.text.trim().isEmpty || _senhaController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Informe e-mail e senha.')),
+      );
+      return;
+    }
+
+    setState(() => _carregando = true);
+    try {
+      await _authApi.login(
+        email: _emailController.text,
+        password: _senhaController.text,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login realizado com sucesso!')),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _carregando = false);
+    }
   }
 
   @override
@@ -70,6 +102,7 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 6),
                     TextField(
                       controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         hintText: 'nome@exemplo.com',
                         border: OutlineInputBorder(
@@ -122,15 +155,7 @@ class _LoginPageState extends State<LoginPage> {
                     SizedBox(
                       height: 46,
                       child: ElevatedButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Login fictício realizado (email + passwordHash no backend)',
-                              ),
-                            ),
-                          );
-                        },
+                        onPressed: _carregando ? null : _entrar,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF3CE86B),
                           foregroundColor: Colors.black87,
@@ -138,7 +163,13 @@ class _LoginPageState extends State<LoginPage> {
                             borderRadius: BorderRadius.circular(24),
                           ),
                         ),
-                        child: const Text('Login'),
+                        child: _carregando
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('Login'),
                       ),
                     ),
                     const SizedBox(height: 16),
