@@ -15,10 +15,22 @@ O principal foco do aplicativo é para ajudar os usuários a encontrarem um app 
 
 
 <br>
-No aplicativo temos 6 telas principais:<br>
-**Tela de login**: Login com e-mail e senha via API JWT.<br>
-**Catálogo e busca de apps**: Listagem e pesquisa de aplicativos.<br>
-**Detalhes do App**: Página de detalhe de um app em específico, contém as reviews do app.<br>
-**Criar review**: Página onde é possível criar uma review para um app específico.<br>
-**Pesquisar devs**: Página que é possível devs.<br>
-**Detalhes do dev**: Página que mostra detalhas do dev, por exemplo, quais apps criou.<br>
+No aplicativo temos 6 telas principais:
+
+**Tela** **de** **login**:
+Login com e-mail e senha via API JWT.<br>
+
+**Catálogo e busca de apps:**
+Listagem e pesquisa de aplicativos.<br>
+
+**Detalhes do App:**
+Página de detalhe de um app em específico, contém as reviews do app.<br>
+
+**Criar review:**
+Página onde é possível criar uma review para um app específico.<br>
+
+**Pesquisar devs:**
+Página que é possível devs.<br>
+
+**Detalhes do dev:**
+Página que mostra detalhas do dev, por exemplo, quais apps criou.<br>
