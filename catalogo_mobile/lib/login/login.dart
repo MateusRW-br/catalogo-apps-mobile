@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../api/auth_helper_api.dart';
 import '../widgets/butia_header.dart';
 
@@ -21,6 +22,18 @@ class _LoginPageState extends State<LoginPage> {
     _emailController.dispose();
     _senhaController.dispose();
     super.dispose();
+  }
+
+  Future<void> _abrirCadastro() async {
+    final uri = Uri.parse('http://localhost:3001/register');
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível abrir a página de cadastro.'),
+        ),
+      );
+    }
   }
 
   Future<void> _entrar() async {
@@ -205,15 +218,27 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Não tem uma conta? '),
-                        Text(
-                          'Cadastrar-se',
-                          style: TextStyle(
-                            color: Color(0xFFF28C28),
-                            fontWeight: FontWeight.w700,
+                        const Text('Não tem uma conta? '),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: _abrirCadastro,
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 2,
+                            ),
+                            child: Text(
+                              'Cadastre-se',
+                              style: TextStyle(
+                                color: Color(0xFFF28C28),
+                                fontWeight: FontWeight.w700,
+                                decoration: TextDecoration.underline,
+                                decorationColor: Color(0xFFF28C28),
+                              ),
+                            ),
                           ),
                         ),
                       ],

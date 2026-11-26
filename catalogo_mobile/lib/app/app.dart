@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../api/app_helper_api.dart';
 import '../criar_review/criar_review.dart';
+import '../dev/dev.dart';
 import '../model/app.dart';
 import '../model/review.dart';
 import '../widgets/butia_header.dart';
@@ -229,12 +230,68 @@ class _DetalheAppPageState extends State<DetalheAppPage> {
                                                   ),
                                                 ),
                                                 const SizedBox(height: 4),
-                                                Text(
-                                                  appAtual.developerName,
-                                                  style: const TextStyle(
-                                                    color: Color(0xFF1B8A3D),
-                                                    fontWeight: FontWeight.w700,
-                                                    fontSize: 14,
+                                                InkWell(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  onTap: appAtual.developerId > 0
+                                                      ? () {
+                                                          Navigator.push(
+                                                            context,
+                                                            MaterialPageRoute(
+                                                              builder: (_) =>
+                                                                  DetalheDevPage(
+                                                                developerId:
+                                                                    appAtual
+                                                                        .developerId,
+                                                              ),
+                                                            ),
+                                                          );
+                                                        }
+                                                      : null,
+                                                  child: Padding(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                      vertical: 2,
+                                                    ),
+                                                    child: Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        Flexible(
+                                                          child: Text(
+                                                            appAtual
+                                                                .developerName,
+                                                            style:
+                                                                const TextStyle(
+                                                              color: Color(
+                                                                0xFF1B8A3D,
+                                                              ),
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                              fontSize: 14,
+                                                              decoration:
+                                                                  TextDecoration
+                                                                      .underline,
+                                                              decorationColor:
+                                                                  Color(
+                                                                0xFF1B8A3D,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 4,
+                                                        ),
+                                                        const Icon(
+                                                          Icons
+                                                              .chevron_right_rounded,
+                                                          size: 18,
+                                                          color:
+                                                              Color(0xFF1B8A3D),
+                                                        ),
+                                                      ],
+                                                    ),
                                                   ),
                                                 ),
                                                 const SizedBox(height: 8),
