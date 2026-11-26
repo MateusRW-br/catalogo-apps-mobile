@@ -13,11 +13,14 @@ class Developer {
 
   factory Developer.fromJson(Map<String, dynamic> json) {
     final appsList = json['apps'] as List?;
+    final rawCount = json['app_count'] ?? json['appsCount'];
     return Developer(
       id: json['id'] as int,
       name: json['name'] as String,
       icon: json['icon'] as String?,
-      appsCount: appsList?.length ?? (json['appsCount'] as int? ?? 0),
+      appsCount: rawCount is num
+          ? rawCount.toInt()
+          : (appsList?.length ?? 0),
     );
   }
 }

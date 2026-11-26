@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../model/app.dart';
 import '../model/developer.dart';
+import '../model/paginated_response.dart';
 import '../model/review.dart';
 import '../token/token_storage.dart';
 
@@ -10,7 +11,11 @@ class AppHelperApi {
   static const String baseUrl = 'http://localhost:3000/api';
   final TokenStorage _tokenStorage = TokenStorage();
 
-  Future _headers() async {
+  Map<String, String> _publicHeaders() {
+    return {'Content-Type': 'application/json'};
+  }
+
+  Future<Map<String, String>> _authHeaders() async {
     final token = await _tokenStorage.lerToken();
     return {
       'Content-Type': 'application/json',
@@ -18,15 +23,14 @@ class AppHelperApi {
     };
   }
 
-  Future<List<AppModel>> listarApps({
+  Future<PaginatedResponse<AppModel>> listarApps({
     String? search,
     String? category,
     String? pricing,
     int? developerId,
     String? sortBy,
-    String? order,
     int page = 1,
-    int limit = 20,
+    int limit = 10,
   }) async {
     final queryParams = <String, String>{
       'page': page.toString(),
@@ -48,22 +52,18 @@ class AppHelperApi {
     if (sortBy != null && sortBy.isNotEmpty) {
       queryParams['sortBy'] = sortBy;
     }
-    if (order != null && order.isNotEmpty) {
-      queryParams['order'] = order;
-    }
 
     final uri = Uri.parse('$baseUrl/apps').replace(queryParameters: queryParams);
-    final response = await http.get(uri, headers: await _headers());
+    final response = await http.get(uri, headers: _publicHeaders());
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final decoded = jsonDecode(response.body);
-      final List<dynamic> listaJson = decoded is Map && decoded['data'] is List
-          ? decoded['data'] as List<dynamic>
-          : (decoded as List<dynamic>);
-
-      return listaJson
-          .map((item) => AppModel.fromJson(item as Map<String, dynamic>))
-          .toList();
+      return PaginatedResponse<AppModel>.fromJson(
+        decoded,
+        AppModel.fromJson,
+        fallbackPage: page,
+        fallbackLimit: limit,
+      );
     }
 
     throw Exception('Erro ao carregar aplicativos (${response.statusCode})');
@@ -72,7 +72,7 @@ class AppHelperApi {
   Future<AppModel> buscarAppPorId(int id) async {
     final response = await http.get(
       Uri.parse('$baseUrl/apps/$id'),
-      headers: await _headers(),
+      headers: _publicHeaders(),
     );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -86,21 +86,27 @@ class AppHelperApi {
     throw Exception('Erro ao carregar detalhes do app (${response.statusCode})');
   }
 
-  Future<List<Review>> listarReviewsDoApp(int appId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/apps/$appId/reviews?page=1&limit=20'),
-      headers: await _headers(),
+  Future<PaginatedResponse<Review>> listarReviewsDoApp(
+    int appId, {
+    int page = 1,
+    int limit = 10,
+  }) async {
+    final uri = Uri.parse('$baseUrl/apps/$appId/reviews').replace(
+      queryParameters: {
+        'page': page.toString(),
+        'limit': limit.toString(),
+      },
     );
+    final response = await http.get(uri, headers: _publicHeaders());
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final decoded = jsonDecode(response.body);
-      final List<dynamic> listaJson = decoded is Map && decoded['data'] is List
-          ? decoded['data'] as List<dynamic>
-          : (decoded as List<dynamic>);
-
-      return listaJson
-          .map((item) => Review.fromJson(item as Map<String, dynamic>))
-          .toList();
+      return PaginatedResponse<Review>.fromJson(
+        decoded,
+        Review.fromJson,
+        fallbackPage: page,
+        fallbackLimit: limit,
+      );
     }
 
     throw Exception('Erro ao carregar reviews (${response.statusCode})');
@@ -116,7 +122,7 @@ class AppHelperApi {
 
     final response = await http.post(
       Uri.parse('$baseUrl/apps/$appId/reviews'),
-      headers: await _headers(),
+      headers: await _authHeaders(),
       body: jsonEncode({
         'userId': userId,
         'name': name.trim(),
@@ -134,30 +140,27 @@ class AppHelperApi {
     }
   }
 
-  Future<List<Developer>> listarDevelopers({
+  Future<PaginatedResponse<Developer>> listarDevelopers({
     int page = 1,
-    int limit = 20,
-    bool includeApps = true,
+    int limit = 10,
   }) async {
     final uri = Uri.parse('$baseUrl/developers').replace(
       queryParameters: {
         'page': page.toString(),
         'limit': limit.toString(),
-        'includeApps': includeApps.toString(),
       },
     );
 
-    final response = await http.get(uri, headers: await _headers());
+    final response = await http.get(uri, headers: _publicHeaders());
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final decoded = jsonDecode(response.body);
-      final List<dynamic> listaJson = decoded is Map && decoded['data'] is List
-          ? decoded['data'] as List<dynamic>
-          : (decoded as List<dynamic>);
-
-      return listaJson
-          .map((item) => Developer.fromJson(item as Map<String, dynamic>))
-          .toList();
+      return PaginatedResponse<Developer>.fromJson(
+        decoded,
+        Developer.fromJson,
+        fallbackPage: page,
+        fallbackLimit: limit,
+      );
     }
 
     throw Exception('Erro ao carregar desenvolvedores (${response.statusCode})');
@@ -166,7 +169,7 @@ class AppHelperApi {
   Future<Developer> buscarDeveloperPorId(int id) async {
     final response = await http.get(
       Uri.parse('$baseUrl/developers/$id'),
-      headers: await _headers(),
+      headers: _publicHeaders(),
     );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {

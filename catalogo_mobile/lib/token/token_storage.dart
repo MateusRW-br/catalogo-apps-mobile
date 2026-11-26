@@ -6,7 +6,7 @@ class TokenStorage {
   static const _keyUserName = 'user_name';
   static const _keyUserEmail = 'user_email';
 
-  Future<void> salvarSessao({
+  static Future<void> salvarSessao({
     required String token,
     int? userId,
     String? name,

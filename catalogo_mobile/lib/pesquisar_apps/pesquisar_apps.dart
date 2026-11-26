@@ -3,6 +3,7 @@ import '../api/app_helper_api.dart';
 import '../model/app.dart';
 import '../widgets/butia_header.dart';
 import '../widgets/card_app.dart';
+import '../widgets/pagination_bar.dart';
 
 class PesquisarAppsPage extends StatefulWidget {
   const PesquisarAppsPage({super.key});
@@ -14,23 +15,16 @@ class PesquisarAppsPage extends StatefulWidget {
 class _PesquisarAppsPageState extends State<PesquisarAppsPage> {
   final TextEditingController _buscaController = TextEditingController();
   final AppHelperApi _appApi = AppHelperApi();
-  final Set<String> _categoriasSelecionadas = {};
-  final Set<String> _precificacoesSelecionadas = {};
-  bool _ordenarPorRatingDesc = true;
+  String? _precificacaoSelecionada; // Uma só ou nenhuma (null)
+  bool _ordenarPorNome = false; // false = Nota (padrão), true = Nome (alphabetical)
   bool _carregando = true;
   String? _erro;
   List<AppModel> _apps = [];
+  int _paginaAtual = 1;
+  int _totalPaginas = 1;
+  int _totalApps = 0;
 
-  static const List<String> _categorias = [
-    'Navegador',
-    'Editor de Texto',
-    'IDE',
-    'Emulador de Terminal',
-    'Processador de Texto',
-    'Planilhas',
-    'Office Suite',
-    'Outros',
-  ];
+  static const int _limitePorPagina = 10;
 
   static const Map<String, String> _precificacoesFiltro = {
     'Grátis': 'free',
@@ -51,38 +45,29 @@ class _PesquisarAppsPageState extends State<PesquisarAppsPage> {
     super.dispose();
   }
 
-  Future<void> _carregarApps() async {
+  Future<void> _carregarApps({int? pagina}) async {
+    final paginaAlvo = pagina ?? _paginaAtual;
     setState(() {
       _carregando = true;
       _erro = null;
+      _paginaAtual = paginaAlvo;
     });
 
     try {
-      final categoriaParam = _categoriasSelecionadas.length == 1
-          ? _categoriasSelecionadas.first
-          : null;
-      final pricingParam = _precificacoesSelecionadas.length == 1
-          ? _precificacoesSelecionadas.first
-          : null;
-
-      final resultado = await _appApi.listarApps(
+      final resposta = await _appApi.listarApps(
         search: _buscaController.text,
-        category: categoriaParam,
-        pricing: pricingParam,
-        order: _ordenarPorRatingDesc ? 'desc' : 'asc',
+        pricing: _precificacaoSelecionada,
+        sortBy: _ordenarPorNome ? 'alphabetical' : null,
+        page: paginaAlvo,
+        limit: _limitePorPagina,
       );
-
-      final filtrados = resultado.where((app) {
-        final bateCat = _categoriasSelecionadas.isEmpty ||
-            _categoriasSelecionadas.contains(app.category);
-        final batePreco = _precificacoesSelecionadas.isEmpty ||
-            _precificacoesSelecionadas.contains(app.pricing.toLowerCase());
-        return bateCat && batePreco;
-      }).toList();
 
       if (!mounted) return;
       setState(() {
-        _apps = filtrados;
+        _apps = resposta.data;
+        _paginaAtual = resposta.page;
+        _totalPaginas = resposta.totalPages;
+        _totalApps = resposta.total;
       });
     } catch (e) {
       if (!mounted) return;
@@ -97,194 +82,326 @@ class _PesquisarAppsPageState extends State<PesquisarAppsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF7FBF8),
+      bottomNavigationBar: const ButiaBottomNav(abaAtiva: 0),
       body: SafeArea(
         child: Column(
           children: [
             const ButiaHeader(abaAtiva: 0),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    RichText(
-                      text: const TextSpan(
-                        style: TextStyle(fontSize: 32, color: Colors.black87),
-                        children: [
-                          TextSpan(text: 'Pesquisar '),
-                          TextSpan(
-                            text: 'Aplicativos',
-                            style: TextStyle(color: Color(0xFFF28C28)),
+              child: RefreshIndicator(
+                color: const Color(0xFF1B8A3D),
+                onRefresh: () => _carregarApps(pagina: _paginaAtual),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      RichText(
+                        textAlign: TextAlign.left,
+                        text: const TextSpan(
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.6,
+                            color: Color(0xFF1A1C19),
+                          ),
+                          children: [
+                            TextSpan(text: 'Pesquisar '),
+                            TextSpan(
+                              text: 'Aplicativos',
+                              style: TextStyle(color: Color(0xFFF28C28)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Barra de pesquisa no topo adaptada para telas menores
+                      SearchBar(
+                        controller: _buscaController,
+                        onChanged: (_) => _carregarApps(pagina: 1),
+                        onSubmitted: (_) => _carregarApps(pagina: 1),
+                        hintText: 'Pesquisar aplicativos...',
+                        leading: const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Icon(
+                            Icons.search_rounded,
+                            color: Color(0xFF1B8A3D),
+                          ),
+                        ),
+                        trailing: [
+                          if (_buscaController.text.isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 20),
+                              onPressed: () {
+                                _buscaController.clear();
+                                _carregarApps(pagina: 1);
+                              },
+                            ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.arrow_forward_rounded,
+                              color: Color(0xFF1B8A3D),
+                            ),
+                            onPressed: () => _carregarApps(pagina: 1),
                           ),
                         ],
+                        elevation: const WidgetStatePropertyAll(0),
+                        backgroundColor: const WidgetStatePropertyAll(
+                          Colors.white,
+                        ),
+                        side: const WidgetStatePropertyAll(
+                          BorderSide(color: Color(0xFF3CE86B), width: 1.5),
+                        ),
+                        shape: WidgetStatePropertyAll(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 360,
-                          child: TextField(
-                            controller: _buscaController,
-                            onChanged: (_) => _carregarApps(),
-                            decoration: InputDecoration(
-                              hintText: 'Pesquisa...',
-                              suffixIcon: IconButton(
-                                icon: const Icon(Icons.arrow_forward),
-                                onPressed: _carregarApps,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
-                                borderSide: const BorderSide(
-                                  color: Color(0xFF3CE86B),
+                      const SizedBox(height: 12),
+                      // Embaixo da barra: botão de ordenação e dropdown de precificação (uma só ou nenhuma)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton.tonalIcon(
+                              onPressed: () {
+                                setState(() {
+                                  _ordenarPorNome = !_ordenarPorNome;
+                                });
+                                _carregarApps(pagina: 1);
+                              },
+                              style: FilledButton.styleFrom(
+                                backgroundColor: const Color(0xFFE5F9EB),
+                                foregroundColor: const Color(0xFF0A2E14),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  side: const BorderSide(
+                                    color: Color(0xFF3CE86B),
+                                  ),
                                 ),
                               ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
+                              icon: Icon(
+                                _ordenarPorNome
+                                    ? Icons.sort_by_alpha_rounded
+                                    : Icons.star_rounded,
+                                size: 18,
+                              ),
+                              label: Text(
+                                _ordenarPorNome
+                                    ? 'Ordenar (Nome)'
+                                    : 'Ordenar (Nota)',
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _ordenarPorRatingDesc = !_ordenarPorRatingDesc;
-                            });
-                            _carregarApps();
-                          },
-                          icon: Icon(
-                            _ordenarPorRatingDesc
-                                ? Icons.arrow_downward
-                                : Icons.arrow_upward,
-                            size: 16,
-                          ),
-                          label: const Text('Ordenar (Nota)'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          width: 210,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              ElevatedButton(
-                                onPressed: () {},
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF3CE86B),
-                                  foregroundColor: Colors.black87,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _precificacaoSelecionada != null
+                                    ? const Color(0xFFFFF3E6)
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: _precificacaoSelecionada != null
+                                      ? const Color(0xFFF28C28)
+                                      : Colors.grey.shade300,
+                                  width: 1.2,
                                 ),
-                                child: const Text('+ Cadastrar App'),
                               ),
-                              const SizedBox(height: 16),
-                              _caixaFiltro(
-                                titulo: 'Categorias',
-                                itens: _categorias
-                                    .map((c) => MapEntry(c, c))
-                                    .toList(),
-                                selecionados: _categoriasSelecionadas,
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String?>(
+                                  value: _precificacaoSelecionada,
+                                  isExpanded: true,
+                                  icon: const Icon(
+                                    Icons.keyboard_arrow_down_rounded,
+                                    color: Color(0xFFF28C28),
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
+                                  dropdownColor: Colors.white,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF1A1C19),
+                                  ),
+                                  hint: const Text(
+                                    'Precificação',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF1A1C19),
+                                    ),
+                                  ),
+                                  items: [
+                                    const DropdownMenuItem<String?>(
+                                      value: null,
+                                      child: Text(
+                                        'Precificação (Todas)',
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    ..._precificacoesFiltro.entries.map(
+                                      (entry) => DropdownMenuItem<String?>(
+                                        value: entry.value,
+                                        child: Text(
+                                          entry.key,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                  onChanged: (valor) {
+                                    setState(() {
+                                      _precificacaoSelecionada = valor;
+                                    });
+                                    _carregarApps(pagina: 1);
+                                  },
+                                ),
                               ),
-                              const SizedBox(height: 16),
-                              _caixaFiltro(
-                                titulo: 'Precificação',
-                                itens: _precificacoesFiltro.entries.toList(),
-                                selecionados: _precificacoesSelecionadas,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '$_totalApps aplicativos encontrados',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          if (_precificacaoSelecionada != null)
+                            GestureDetector(
+                              onTap: () {
+                                setState(() => _precificacaoSelecionada = null);
+                                _carregarApps(pagina: 1);
+                              },
+                              child: const Text(
+                                'Limpar filtro',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFF28C28),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      if (_carregando)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 48),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (_erro != null)
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.error_outline_rounded,
+                                color: Colors.red.shade700,
+                                size: 36,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _erro!,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.red.shade800,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              FilledButton.tonal(
+                                onPressed: () =>
+                                    _carregarApps(pagina: _paginaAtual),
+                                child: const Text('Tentar novamente'),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: 24),
-                        Expanded(
+                        )
+                      else if (_apps.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 48,
+                            horizontal: 20,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Total encontrado: ${_apps.length} aplicativos'),
-                              const SizedBox(height: 14),
-                              if (_carregando)
-                                const Center(child: CircularProgressIndicator())
-                              else if (_erro != null)
-                                Text(
-                                  _erro!,
-                                  style: const TextStyle(color: Colors.red),
-                                )
-                              else
-                                GridView.builder(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: _apps.length,
-                                  gridDelegate:
-                                      const SliverGridDelegateWithMaxCrossAxisExtent(
-                                    maxCrossAxisExtent: 300,
-                                    mainAxisExtent: 270,
-                                    crossAxisSpacing: 16,
-                                    mainAxisSpacing: 16,
-                                  ),
-                                  itemBuilder: (_, i) => CardApp(app: _apps[i]),
+                              Icon(
+                                Icons.search_off_rounded,
+                                size: 48,
+                                color: Colors.grey.shade400,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Nenhum aplicativo encontrado',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.grey.shade700,
                                 ),
+                              ),
                             ],
                           ),
+                        )
+                      else ...[
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _apps.length,
+                          gridDelegate:
+                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 210,
+                            mainAxisExtent: 235,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
+                          itemBuilder: (_, i) => CardApp(app: _apps[i]),
+                        ),
+                        PaginationBar(
+                          currentPage: _paginaAtual,
+                          totalPages: _totalPaginas,
+                          onPageChanged: (novaPagina) =>
+                              _carregarApps(pagina: novaPagina),
                         ),
                       ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _caixaFiltro({
-    required String titulo,
-    required List<MapEntry<String, String>> itens,
-    required Set<String> selecionados,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Text(
-              titulo,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          const Divider(height: 1),
-          ...itens.map((entry) {
-            final ativo = selecionados.contains(entry.value);
-            return CheckboxListTile(
-              dense: true,
-              controlAffinity: ListTileControlAffinity.leading,
-              value: ativo,
-              title: Text(entry.key, style: const TextStyle(fontSize: 13)),
-              onChanged: (checked) {
-                setState(() {
-                  if (checked == true) {
-                    selecionados.add(entry.value);
-                  } else {
-                    selecionados.remove(entry.value);
-                  }
-                });
-                _carregarApps();
-              },
-            );
-          }),
-        ],
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api/auth_helper_api.dart';
+import '../widgets/butia_header.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -54,34 +55,38 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF7FBF8),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: const Icon(Icons.arrow_back_rounded, color: Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
         title: const Text(
-          'Login',
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+          'Entrar na Conta',
+          style: TextStyle(
+            color: Color(0xFF1A1C19),
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
         ),
       ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 450),
+            constraints: const BoxConstraints(maxWidth: 420),
             child: Card(
               color: Colors.white,
-              elevation: 2,
+              elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(28),
                 side: BorderSide(color: Colors.grey.shade200),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(28),
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -89,43 +94,55 @@ class _LoginPageState extends State<LoginPage> {
                     const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: Color(0xFFDCE043),
+                        ButiaLogo(size: 42),
+                        SizedBox(width: 12),
+                        Text(
+                          'Butiápps',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
                         ),
-                        SizedBox(width: 10),
-                        Text('Butiáapps', style: TextStyle(fontSize: 24)),
                       ],
                     ),
                     const SizedBox(height: 24),
-                    const Text('E-mail:'),
+                    const Text(
+                      'E-mail',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     TextField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         hintText: 'nome@exemplo.com',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(28),
-                        ),
+                        prefixIcon: Icon(Icons.mail_outline_rounded),
                       ),
                     ),
-                    const SizedBox(height: 18),
-                    const Text('Senha:'),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Senha',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     TextField(
                       controller: _senhaController,
                       obscureText: _ocultarSenha,
                       decoration: InputDecoration(
                         hintText: '••••••••',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(28),
-                        ),
+                        prefixIcon: const Icon(Icons.lock_outline_rounded),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _ocultarSenha
-                                ? Icons.visibility
-                                : Icons.visibility_off,
+                                ? Icons.visibility_rounded
+                                : Icons.visibility_off_rounded,
                           ),
                           onPressed: () =>
                               setState(() => _ocultarSenha = !_ocultarSenha),
@@ -134,18 +151,25 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 16),
                     RichText(
+                      textAlign: TextAlign.center,
                       text: const TextSpan(
                         style: TextStyle(color: Colors.black87, fontSize: 12),
                         children: [
                           TextSpan(text: 'Ao confirmar você concordará com os '),
                           TextSpan(
                             text: 'Termos de Uso',
-                            style: TextStyle(color: Color(0xFFF28C28)),
+                            style: TextStyle(
+                              color: Color(0xFFF28C28),
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                           TextSpan(text: ' e '),
                           TextSpan(
                             text: 'Política de Privacidade',
-                            style: TextStyle(color: Color(0xFFF28C28)),
+                            style: TextStyle(
+                              color: Color(0xFFF28C28),
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                           TextSpan(text: '.'),
                         ],
@@ -153,23 +177,31 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 22),
                     SizedBox(
-                      height: 46,
-                      child: ElevatedButton(
+                      height: 52,
+                      child: FilledButton(
                         onPressed: _carregando ? null : _entrar,
-                        style: ElevatedButton.styleFrom(
+                        style: FilledButton.styleFrom(
                           backgroundColor: const Color(0xFF3CE86B),
-                          foregroundColor: Colors.black87,
+                          foregroundColor: const Color(0xFF0A2E14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
+                            borderRadius: BorderRadius.circular(26),
                           ),
                         ),
                         child: _carregando
                             ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                ),
                               )
-                            : const Text('Login'),
+                            : const Text(
+                                'Entrar',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -179,7 +211,10 @@ class _LoginPageState extends State<LoginPage> {
                         Text('Não tem uma conta? '),
                         Text(
                           'Cadastrar-se',
-                          style: TextStyle(color: Color(0xFFF28C28)),
+                          style: TextStyle(
+                            color: Color(0xFFF28C28),
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ],
                     ),

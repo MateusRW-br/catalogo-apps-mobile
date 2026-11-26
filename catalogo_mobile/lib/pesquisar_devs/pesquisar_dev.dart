@@ -3,6 +3,7 @@ import '../api/app_helper_api.dart';
 import '../dev/dev.dart';
 import '../model/developer.dart';
 import '../widgets/butia_header.dart';
+import '../widgets/pagination_bar.dart';
 
 class PesquisarDevsPage extends StatefulWidget {
   const PesquisarDevsPage({super.key});
@@ -17,6 +18,11 @@ class _PesquisarDevsPageState extends State<PesquisarDevsPage> {
   List<Developer> _todosDevs = [];
   bool _carregando = true;
   String? _erro;
+  int _paginaAtual = 1;
+  int _totalPaginas = 1;
+  int _totalDevs = 0;
+
+  static const int _limitePorPagina = 10;
 
   @override
   void initState() {
@@ -30,15 +36,25 @@ class _PesquisarDevsPageState extends State<PesquisarDevsPage> {
     super.dispose();
   }
 
-  Future<void> _carregarDevs() async {
+  Future<void> _carregarDevs({int? pagina}) async {
+    final paginaAlvo = pagina ?? _paginaAtual;
     setState(() {
       _carregando = true;
       _erro = null;
+      _paginaAtual = paginaAlvo;
     });
     try {
-      final devs = await _appApi.listarDevelopers(page: 1, limit: 50);
+      final resp = await _appApi.listarDevelopers(
+        page: paginaAlvo,
+        limit: _limitePorPagina,
+      );
       if (!mounted) return;
-      setState(() => _todosDevs = devs);
+      setState(() {
+        _todosDevs = resp.data;
+        _paginaAtual = resp.page;
+        _totalPaginas = resp.totalPages;
+        _totalDevs = resp.total;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => _erro = e.toString().replaceFirst('Exception: ', ''));
@@ -55,121 +71,214 @@ class _PesquisarDevsPageState extends State<PesquisarDevsPage> {
         .toList();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF7FBF8),
+      bottomNavigationBar: const ButiaBottomNav(abaAtiva: 1),
       body: SafeArea(
         child: Column(
           children: [
             const ButiaHeader(abaAtiva: 1),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 120,
-                  vertical: 24,
-                ),
-                child: Column(
-                  children: [
-                    RichText(
-                      text: const TextSpan(
-                        style: TextStyle(fontSize: 32, color: Colors.black87),
-                        children: [
-                          TextSpan(text: 'Pesquisar '),
-                          TextSpan(
-                            text: 'Desenvolvedores',
-                            style: TextStyle(color: Color(0xFFF28C28)),
+              child: RefreshIndicator(
+                color: const Color(0xFF1B8A3D),
+                onRefresh: _carregarDevs,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      RichText(
+                        text: const TextSpan(
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.6,
+                            color: Color(0xFF1A1C19),
                           ),
-                        ],
+                          children: [
+                            TextSpan(text: 'Pesquisar '),
+                            TextSpan(
+                              text: 'Desenvolvedores',
+                              style: TextStyle(color: Color(0xFFF28C28)),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 18),
-                    SizedBox(
-                      width: 360,
-                      child: TextField(
+                      const SizedBox(height: 16),
+                      SearchBar(
                         controller: _buscaController,
                         onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(
-                          hintText: 'Pesquisa...',
-                          suffixIcon: const Icon(Icons.arrow_forward),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: const BorderSide(
-                              color: Color(0xFF3CE86B),
-                            ),
+                        hintText: 'Pesquisar desenvolvedores...',
+                        leading: const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Icon(
+                            Icons.search_rounded,
+                            color: Color(0xFF1B8A3D),
                           ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
+                        ),
+                        trailing: [
+                          if (_buscaController.text.isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 20),
+                              onPressed: () {
+                                _buscaController.clear();
+                                setState(() {});
+                              },
+                            ),
+                        ],
+                        elevation: const WidgetStatePropertyAll(0),
+                        backgroundColor: const WidgetStatePropertyAll(
+                          Colors.white,
+                        ),
+                        side: const WidgetStatePropertyAll(
+                          BorderSide(color: Color(0xFF3CE86B), width: 1.5),
+                        ),
+                        shape: WidgetStatePropertyAll(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(28),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('Total encontrado: ${devs.length} desenvolvedores'),
-                    ),
-                    const SizedBox(height: 12),
-                    if (_carregando)
-                      const Center(child: CircularProgressIndicator())
-                    else if (_erro != null)
-                      Text(_erro!, style: const TextStyle(color: Colors.red))
-                    else
-                      ...devs.map(
-                        (dev) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      DetalheDevPage(developerId: dev.id),
+                      const SizedBox(height: 18),
+                      Text(
+                        '${termo.isEmpty ? _totalDevs : devs.length} desenvolvedores encontrados',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (_carregando)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 48),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (_erro != null)
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.error_outline_rounded,
+                                color: Colors.red.shade700,
+                                size: 36,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _erro!,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.red.shade800,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                              );
-                            },
+                              ),
+                            ],
+                          ),
+                        )
+                      else ...[
+                        ...devs.map(
+                          (dev) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
                             child: Card(
                               color: Colors.white,
+                              clipBehavior: Clip.antiAlias,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.circular(24),
                                 side: BorderSide(color: Colors.grey.shade200),
                               ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 18,
-                                  vertical: 14,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 56,
-                                      height: 56,
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey.shade400,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(24),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          DetalheDevPage(developerId: dev.id),
                                     ),
-                                    const SizedBox(width: 18),
-                                    Expanded(
-                                      child: Text(
-                                        dev.name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
+                                  );
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 14,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      RemoteIconAvatar(
+                                        imageUrl: dev.icon,
+                                        size: 54,
+                                        borderRadius: 18,
+                                        fallbackIcon: Icons.person_rounded,
+                                        fallbackIconColor:
+                                            const Color(0xFFF28C28),
+                                        fallbackBackgroundColor:
+                                            const Color(0xFFFFF3E6),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              dev.name,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 16,
+                                                color: Color(0xFF1A1C19),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Desenvolvedor verificado',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    ),
-                                    Text(
-                                      '${dev.appsCount} apps',
-                                      style: TextStyle(
-                                        color: Colors.grey.shade600,
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFE5F9EB),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                        child: Text(
+                                          '${dev.appsCount} apps',
+                                          style: const TextStyle(
+                                            color: Color(0xFF0A2E14),
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 12,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
+                        PaginationBar(
+                          currentPage: _paginaAtual,
+                          totalPages: _totalPaginas,
+                          onPageChanged: (novaPagina) =>
+                              _carregarDevs(pagina: novaPagina),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             ),
